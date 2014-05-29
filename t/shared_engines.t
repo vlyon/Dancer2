@@ -3,7 +3,7 @@ use warnings;
 
 use File::Spec;
 use File::Temp 0.22;
-use LWP::UserAgent;
+use HTTP::Tiny;
 use Test::More;
 use Test::TCP 1.13;
 use YAML;
@@ -14,14 +14,13 @@ Test::TCP::test_tcp(
     client => sub {
         my $port = shift;
 
-        my $ua = LWP::UserAgent->new;
-        $ua->cookie_jar( { file => "$tempdir/.cookies.txt" } );
+        my $ua = HTTP::Tiny->new();
 
         my $res = $ua->get("http://127.0.0.1:$port/main");
-        like $res->content, qr{42}, "session is set in main";
+        like $res->{'content'}, qr{42}, "session is set in main";
 
         $res = $ua->get("http://127.0.0.1:$port/in_foo");
-        like $res->content, qr{42}, "session is set in foo";
+        like $res->{'content'}, qr{42}, "session is set in foo";
 
         my $engine = t::lib::Foo->dsl->engine('session');
         is $engine->{__marker__}, 1,
