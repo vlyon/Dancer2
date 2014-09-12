@@ -7,6 +7,7 @@ use HTTP::Tiny;
 use Test::More;
 use Test::TCP 1.13;
 use YAML;
+use HTTP::CookieJar;
 
 my $tempdir = File::Temp::tempdir( CLEANUP => 1, TMPDIR => 1 );
 
@@ -14,7 +15,7 @@ Test::TCP::test_tcp(
     client => sub {
         my $port = shift;
 
-        my $ua = HTTP::Tiny->new();
+        my $ua = HTTP::Tiny->new( cookie_jar => HTTP::CookieJar->new );
 
         my $res = $ua->get("http://127.0.0.1:$port/main");
         like $res->{'content'}, qr{42}, "session is set in main";
