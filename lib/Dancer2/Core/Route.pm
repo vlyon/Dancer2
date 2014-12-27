@@ -138,6 +138,13 @@ sub BUILDARGS {
     my $prefix = $args{prefix};
     my $regexp = $args{regexp};
 
+    # regexp must either be an empty string or have a leading /
+    # cf. the allowed values of path_info in the PSGI spec.
+    if ( ref($regexp) ne 'Regexp' ) {
+        length $regexp == 0 or index( $regexp, '/', 0 ) == 0
+            or die "regexp must be an empty string or begin with /\n";
+    }
+
     # init prefix
     if ( $prefix ) {
         $args{regexp} =

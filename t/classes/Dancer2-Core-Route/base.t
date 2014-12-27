@@ -6,7 +6,7 @@ use Dancer2::Core::Route;
 
 plan tests => 2;
 
-is(
+like(
     exception {
         Dancer2::Core::Route->new(
             regexp => 'no+leading+slash',
@@ -14,8 +14,8 @@ is(
             code   => sub {1},
         )
     },
-    undef,
-    'route pattern can start with a / or not',
+    qr!begin with \/!,
+    'non-empty route pattern must start with a /',
 );
 
 is(
