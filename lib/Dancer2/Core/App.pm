@@ -12,6 +12,7 @@ use File::Spec;
 use Module::Runtime    'use_module';
 use List::Util         ();
 use Ref::Util          qw< is_ref is_globref is_scalarref >;
+use Devel::StackTrace;
 
 use Plack::App::File;
 use Plack::Middleware::FixMissingBodyInRedirect;
@@ -1584,14 +1585,26 @@ sub _dispatch_route {
     my ( $self, $route ) = @_;
 
     local $@;
+    my $trace;
+    my $get_trace = sub {
+        my $end_trace;
+        $trace = Devel::StackTrace->new(
+            skip_frames  => 1,
+            frame_filter => sub {
+                $end_trace = 1 if $_[0]{caller}[0] eq 'Dancer2::Core::Route';
+                !$end_trace;
+            },
+        );
+    };
     eval {
+        local $SIG{__DIE__} = $get_trace;
         $EVAL_SHIM->(sub {
             $self->execute_hook( 'core.app.before_request', $self );
         });
         1;
     } or do {
         my $err = $@ || "Zombie Error";
-        return $self->response_internal_error($err);
+        return $self->response_internal_error($err, $trace);
     };
     my $response = $self->response;
 
@@ -1600,11 +1613,12 @@ sub _dispatch_route {
     }
 
     eval {
+        local $SIG{__DIE__} = $get_trace;
         $EVAL_SHIM->(sub{ $response = $route->execute($self) });
         1;
     } or do {
         my $err = $@ || "Zombie Error";
-        return $self->response_internal_error($err);
+        return $self->response_internal_error($err, $trace);
     };
 
     return $response;
@@ -1628,7 +1642,7 @@ sub _prep_response {
 }
 
 sub response_internal_error {
-    my ( $self, $error ) = @_;
+    my ( $self, $error, $trace ) = @_;
 
     $self->execute_hook( 'core.app.route_exception', $self, $error );
     $self->log( error => "Route exception: $error" );
@@ -1640,6 +1654,7 @@ sub response_internal_error {
         app       => $self,
         status    => 500,
         exception => $error,
+        (stack_trace => $trace) x !!$trace,
     )->throw;
 }
 
